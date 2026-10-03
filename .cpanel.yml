@@ -1,0 +1,11 @@
+---
+deployment:
+  tasks:
+    - export APPPATH=/home/tanjinal/veli-joze.eu
+    - /bin/mkdir -p $APPPATH
+    - /bin/cp -R .next/standalone/. $APPPATH/
+    - /bin/mkdir -p $APPPATH/.next/static
+    - /bin/cp -R .next/static/. $APPPATH/.next/static/
+    - /bin/mkdir -p $APPPATH/public
+    - /bin/cp -R public/. $APPPATH/public/
+    - /bin/cp server.js $APPPATH/server.js
