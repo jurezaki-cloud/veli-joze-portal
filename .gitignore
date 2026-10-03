@@ -13,6 +13,10 @@
 # testing
 /coverage
 
+# local QA / visual regression artifacts
+/qa-*.png
+/visual-*.png
+
 # next.js
 /.next/
 /out/

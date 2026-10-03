@@ -1,36 +1,37 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Veli Jože – Portal pavšalistov
 
-## Getting Started
+Neuradni portal skupnosti pavšalistov Kampa Veli Jože v Savudriji.
 
-First, run the development server:
-
+## Lokalni zagon
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
+Odpri http://localhost:3000.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Preverjanje pred izdajo
+```bash
+npm run lint
+npm run build
+```
+API `/api/readiness` mora pred produkcijskim vklopom vrniti `ready: true`, nato je obvezen še end-to-end test.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Produkcijski priklop
+1. Pripravi namensko PostgreSQL bazo in uporabi `db/schema.sql`.
+2. Izberi in priklopi pravi `AUTH_PROVIDER`.
+3. Nastavi močan `AUTH_SECRET` (najmanj 32 znakov).
+4. Priklopi shared/distributed rate limiter in nastavi `RATE_LIMIT_PROVIDER`.
+5. Če bo omogočena Google prijava, nastavi `GOOGLE_CLIENT_ID` in `GOOGLE_CLIENT_SECRET`.
+6. Preveri registracijo, prijavo, odjavo, seje, pravice member/moderator/admin in odobritev pavšalista.
+7. Preveri zapis/bralne poti za klepet, oglase, težave, obvestila, dogodke in profil.
+8. Preveri backup + restore baze.
+9. Šele po uspešnem E2E testu odstrani DEMO oznake in omogoči produkcijske write akcije.
+10. Nato priklopi končno domeno/NEOSERV DNS in HTTPS.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## PWA
+Manifest: `/manifest.webmanifest`
+Service worker: `/sw.js`
+Aplikacija uporablja standalone prikaz in mobilno navigacijo.
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Varnost
+Produkcijskih skrivnosti se ne zapisuje v Git. Podrobnosti so v `PRODUCTION_SECURITY.md`.

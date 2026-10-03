@@ -1,0 +1,28 @@
+# Production launch checklist
+
+- [ ] Končna domena potrjena
+- [ ] PostgreSQL baza ustvarjena
+- [ ] db/schema.sql apliciran
+- [ ] AUTH_PROVIDER priklopljen
+- [ ] AUTH_SECRET nastavljen (>= 32 znakov)
+- [ ] Shared rate limiter priklopljen
+- [ ] Google OAuth nastavljen (če se uporablja)
+- [ ] Registracija E2E PASS
+- [ ] Prijava/odjava/session E2E PASS
+- [ ] Odobritev pavšalista E2E PASS
+- [ ] Member/moderator/admin pravice PASS
+- [ ] Klepet persistence + moderiranje PASS
+- [ ] Oglasi persistence + moderiranje PASS
+- [ ] Prijave težav persistence PASS
+- [ ] Obvestila/dogodki admin write PASS
+- [ ] Profil + zasebnost parcele PASS
+- [ ] CSRF/origin zaščita PASS
+- [ ] Rate-limit test PASS
+- [ ] Backup baze narejen
+- [ ] Restore baze testiran
+- [ ] PWA manifest/service worker PASS
+- [ ] Mobilni QA PASS
+- [ ] /api/readiness ready=true
+- [ ] Končni E2E production smoke test PASS
+- [ ] DEMO oznake odstranjene šele po zgornjih testih
+- [ ] NEOSERV DNS + HTTPS priklop

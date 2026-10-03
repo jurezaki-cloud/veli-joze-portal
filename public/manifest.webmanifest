@@ -1,0 +1,17 @@
+{
+  "name": "Veli Jože – Portal pavšalistov",
+  "short_name": "Veli Jože",
+  "description": "Neuradni portal skupnosti pavšalistov Kampa Veli Jože",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f5f9fa",
+  "theme_color": "#0875a7",
+  "lang": "sl",
+  "orientation": "portrait-primary",
+  "icons": [
+    {"src":"/icons/icon-192.svg","sizes":"192x192","type":"image/svg+xml","purpose":"any"},
+    {"src":"/icons/icon-512.svg","sizes":"512x512","type":"image/svg+xml","purpose":"any"}
+  ]
+}
