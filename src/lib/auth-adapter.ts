@@ -1,10 +1,9 @@
-import type {Role} from "./domain";
-export type AuthIdentity={id:string;email:string;role:Role;approved:boolean};
-export interface AuthAdapter{getIdentity(req:Request):Promise<AuthIdentity|null>;}
-class DisabledAuthAdapter implements AuthAdapter{
- async getIdentity(req:Request){void req;return null;}
-}
-export function getAuthAdapter():AuthAdapter{
- // Replace only after AUTH_PROVIDER is configured and verified end-to-end.
- return new DisabledAuthAdapter();
-}
+import type {Role} from "./domain";import {jwtVerify,SignJWT} from "jose";import {getPortalRepository} from "./repository";
+export type AuthIdentity={id:string;email:string;role:Role;approved:boolean};export type OnboardingIdentity={email:string;name:string;sub:string};
+export interface AuthAdapter{getIdentity(req:Request):Promise<AuthIdentity|null>;}const COOKIE="vj_session",ONBOARD="vj_onboarding";const key=()=>new TextEncoder().encode(process.env.AUTH_SECRET||"");
+export async function createSessionToken(user:AuthIdentity){if(!process.env.AUTH_SECRET)throw new Error("AUTH_SECRET missing");return new SignJWT({id:user.id,email:user.email,type:"session"}).setProtectedHeader({alg:"HS256"}).setIssuedAt().setExpirationTime("7d").sign(key())}
+export async function createOnboardingToken(user:OnboardingIdentity){if(!process.env.AUTH_SECRET)throw new Error("AUTH_SECRET missing");return new SignJWT({...user,type:"onboarding"}).setProtectedHeader({alg:"HS256"}).setIssuedAt().setExpirationTime("15m").sign(key())}
+export async function getOnboardingIdentity(req:Request){const raw=cookie(req,ONBOARD);if(!raw||!process.env.AUTH_SECRET)return null;try{const {payload}=await jwtVerify(raw,key());if(payload.type!=="onboarding"||!payload.email||!payload.sub)return null;return {email:String(payload.email),name:String(payload.name||""),sub:String(payload.sub)} as OnboardingIdentity}catch{return null}}
+function cookie(req:Request,name:string){return req.headers.get("cookie")?.split(";").map(x=>x.trim()).find(x=>x.startsWith(name+"="))?.slice(name.length+1)}
+class GoogleAuthAdapter implements AuthAdapter{async getIdentity(req:Request){const raw=cookie(req,COOKIE);if(!raw||!process.env.AUTH_SECRET)return null;try{const {payload}=await jwtVerify(raw,key());if(payload.type!=="session"||!payload.id||!payload.email)return null;const m=await getPortalRepository().getMember(String(payload.id));if(!m||m.email!==String(payload.email))return null;return {id:m.id,email:m.email,role:m.role,approved:m.approved}}catch{return null}}}
+class DisabledAuthAdapter implements AuthAdapter{async getIdentity(req:Request){void req;return null}}export function getAuthAdapter():AuthAdapter{return process.env.AUTH_PROVIDER==="google"?new GoogleAuthAdapter():new DisabledAuthAdapter()}export const sessionCookie=COOKIE,onboardingCookie=ONBOARD;

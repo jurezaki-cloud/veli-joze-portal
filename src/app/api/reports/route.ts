@@ -1,11 +1,11 @@
-import {rateLimit} from "@/lib/rate-limit";
+﻿import {rateLimit} from "@/lib/rate-limit";
 import {requireMember} from "@/lib/auth-guard";
 import {NextResponse} from "next/server";
 import {backendStatus} from "@/lib/backend-status";
 import {cleanText,readJson,requireSameOrigin} from "@/lib/api-security";
 import {getPortalRepository} from "@/lib/repository";
 export async function POST(req:Request){
- const limited=rateLimit(req,"reports",10,60000);if(limited)return limited;
+ const limited=await rateLimit(req,"reports",10,60000);if(limited)return limited;
  const originError=requireSameOrigin(req);if(originError)return originError;
  const auth=await requireMember(req);if(auth.response)return auth.response;
  const p=await readJson(req);if(!p.ok)return p.response;
