@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "db:migrate": "node scripts/migrate-db.mjs",
-    "preflight": "node scripts/preflight.mjs"
+    "preflight": "node scripts/preflight.mjs",
+    "test:seo": "node --experimental-strip-types --test tests/seo.test.mjs",
+    "test:seo:built": "node --experimental-strip-types --test tests/seo-built.test.mjs"
   },
   "dependencies": {
     "jose": "^6.2.12",
