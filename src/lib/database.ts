@@ -1,5 +1,5 @@
 import {Pool} from "pg";
-export type DbQueryResult<T>={rows:T[]};
+export type DbQueryResult<T>={rows:T[];rowCount:number};
 export interface DatabaseAdapter{
  query<T=unknown>(sql:string,params?:unknown[]):Promise<DbQueryResult<T>>;
 }
@@ -10,7 +10,7 @@ class PostgresDatabaseAdapter implements DatabaseAdapter{
  constructor(private pool:Pool){}
  async query<T=unknown>(sql:string,params:unknown[]=[]):Promise<DbQueryResult<T>>{
   const result=await this.pool.query(sql,params);
-  return {rows:result.rows as T[]};
+  return {rows:result.rows as T[],rowCount:result.rowCount??0};
  }
 }
 let pool:Pool|undefined;

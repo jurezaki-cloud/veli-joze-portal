@@ -1,0 +1,16 @@
+/* eslint-disable @typescript-eslint/no-require-imports -- Actual photo form handlers with deferred failing transport. */
+const assert=require('node:assert/strict'),fs=require('node:fs'),ts=require('typescript'),React=require('react');
+async function check(kind){
+ let calls=0,finish,refIndex=0,stateIndex=0,clears=0,resets=0,keys=0;
+ const states=kind==='chat'?[[],"","",false,true,false,"",false,null]:[[],[],'bob',null,'alice',[],[],false,false,'','', '',false,true,'',0,false,null];
+ const refs=kind==='chat'?[{current:false},{current:'alice'},{current:true},{current:0},{current:null},{current:false},{current:null}]:[{current:'bob'},{current:0},{current:false},{current:true},{current:'alice'},{current:null},{current:0},{current:null},{current:false},{current:{peer:'bob',own:'alice'}}];
+ const file=kind==='chat'?'src/app/klepet/ChatClient.tsx':'src/app/sporocila/page.tsx',mod={exports:{}};
+ const code=ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText+'\nexports.TestComponent='+(kind==='chat'?'Room':'MessagesClient')+';';
+ const req=name=>name==='react'?{...React,useState:()=>[states[stateIndex++],()=>{}],useRef:()=>refs[refIndex++],useCallback:f=>f,useEffect:()=>{}}:name==='next/navigation'?{useSearchParams:()=>({get:()=>null})}:name==='@/lib/photo-request'?{getPhotoRequestKey:async()=>{keys++;return '11111111-1111-4111-8111-111111111111'},clearPhotoRequestKey:()=>{clears++}}:name==='@/lib/client-api'?{readApiResponse:async r=>{if(!r.ok)throw Error('Zavrnjeno');return r.json()}}:name.startsWith('@/lib/')?{}:name==='next/link'||name.includes('Section')||name.includes('MemberAvatar')||name.includes('MessagePhoto')?()=>null:require(name);
+ new Function('require','module','exports',code)(req,mod,mod.exports);const tree=mod.exports.TestComponent({room:'general',label:'Splošno'});let form;function visit(x){if(!x||typeof x!=='object')return;if(x.type==='form'&&x.props?.onSubmit?.name==='photo')form=x;React.Children.forEach(x.props?.children,visit)}visit(tree);assert.ok(form);
+ const old=global.FormData;global.FormData=class{constructor(){this.data=new Map([['photo',new File(['photo'],'a.png')]])}get(k){return this.data.get(k)}set(k,v){this.data.set(k,v)}};
+ global.fetch=(_url,options)=>{calls++;assert.equal(options.body.get('clientRequestId'),'11111111-1111-4111-8111-111111111111');return new Promise(resolve=>{finish=resolve})};
+ try{const event={preventDefault(){},currentTarget:{reset(){resets++}}};const first=form.props.onSubmit(event);await form.props.onSubmit(event);await new Promise(resolve=>setImmediate(resolve));assert.equal(calls,1);finish({ok:false});await first;assert.equal(clears,0);assert.equal(resets,0);assert.equal(refs[kind==='chat'?0:2].current,false);const second=form.props.onSubmit(event);await new Promise(resolve=>setImmediate(resolve));assert.equal(calls,2);finish({ok:false});await second;assert.equal(keys,2);assert.equal(clears,0);assert.equal(resets,0);console.log('PASS '+kind+' photo composer blocks double submit and preserves selection/retry key after failure')}
+ finally{global.FormData=old}
+}
+(async()=>{await check('chat');await check('direct')})().catch(e=>{console.error(e);process.exitCode=1});

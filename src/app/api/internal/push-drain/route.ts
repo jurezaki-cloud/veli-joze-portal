@@ -1,0 +1,4 @@
+import {NextResponse} from "next/server";
+import {createHmac,timingSafeEqual} from "node:crypto";
+import {drainPush} from "@/lib/push-notifications";
+export async function POST(req:Request){const secret=process.env.AUTH_SECRET,token=req.headers.get("authorization")?.replace(/^Bearer /,"")||"";if(!secret||!/^[a-f0-9]{64}$/.test(token))return NextResponse.json({ok:false},{status:401});const expected=createHmac("sha256",secret).update("veli-joze-push-worker-v190").digest();if(!timingSafeEqual(expected,Buffer.from(token,"hex")))return NextResponse.json({ok:false},{status:401});try{const data=await drainPush();return NextResponse.json({ok:data.configured,data},{status:data.configured?200:503,headers:{"cache-control":"private, no-store"}})}catch{return NextResponse.json({ok:false},{status:503})}}

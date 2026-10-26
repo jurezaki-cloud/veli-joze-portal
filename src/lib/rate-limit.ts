@@ -1,9 +1,10 @@
+import {createHash} from "node:crypto";
 import {NextResponse} from "next/server";
 import {getDatabase} from "./database";
 type Bucket={count:number;resetAt:number};const buckets=new Map<string,Bucket>();
 function denied(seconds:number){return NextResponse.json({ok:false,message:"Preveč zahtev. Poskusi ponovno čez nekaj trenutkov."},{status:429,headers:{"Retry-After":String(Math.max(1,seconds))}})}
 export async function rateLimit(req:Request,scope:string,limit=20,windowMs=60_000){
- const forwarded=req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();const key=`${scope}:${forwarded||"local"}`;const now=Date.now();
+ const forwarded=req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();const key=`${scope}:${createHash("sha256").update(forwarded||"local").digest("hex")}`;const now=Date.now();
  if(process.env.RATE_LIMIT_PROVIDER==="postgres"&&process.env.DATABASE_URL){
   const reset=new Date(now+windowMs);
   const q=await getDatabase().query<{count:number;reset_at:Date|string}>(`insert into rate_limits(key,count,reset_at) values($1,1,$2)

@@ -1,5 +1,5 @@
 export type Role="guest"|"member"|"moderator"|"admin";
-export type Member={id:string;email:string;displayName:string;nickname?:string;zone:string;parcelPrivate:string;role:Role;approved:boolean;showZone:boolean;notifications:boolean;createdAt:string};
+export type Member={id:string;email:string;displayName:string;nickname?:string;zone:string;parcelPrivate:string;role:Role;approved:boolean;showZone:boolean;notifications:boolean;createdAt:string;blockedUntil?:string;blockedPermanent?:boolean;sessionVersion?:number;avatarUpdatedAt?:string};
 export type ChatRoom="general"|"social"|"help"|"market"|"lost-found";
 export type ChatMessage={id:string;room:ChatRoom;authorId:string;body:string;createdAt:string;deletedAt?:string};
 export type Report={id:string;authorId:string;category:string;location:string;description:string;status:"open"|"reviewing"|"closed";createdAt:string};

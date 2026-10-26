@@ -1,0 +1,9 @@
+import {NextResponse} from "next/server";
+import {randomUUID} from "node:crypto";
+import {getSessionUser} from "@/lib/auth-guard";
+import {getDatabase} from "@/lib/database";
+import {readJson,requireSameOrigin} from "@/lib/api-security";
+import {rateLimit} from "@/lib/rate-limit";
+const json=(b:unknown,status=200)=>NextResponse.json(b,{status,headers:{"cache-control":"private, no-store"}});
+export async function GET(req:Request){const u=await getSessionUser(req);if(!u)return json({ok:false,message:"Za spletno zahtevo se prijavi. Brez dostopa lahko pišeš upravljavcu po pošti."},401);try{const r=await getDatabase().query("select id,kind,details,status,created_at,due_at,response,resolved_at from privacy_requests where member_id=$1 order by created_at desc limit 100",[u.id]);return json({ok:true,data:r.rows})}catch{return json({ok:false,message:"Zahtev trenutno ni mogoče naložiti."},503)}}
+export async function POST(req:Request){const origin=requireSameOrigin(req);if(origin)return origin;const u=await getSessionUser(req);if(!u)return json({ok:false,message:"Za spletno zahtevo se prijavi."},401);try{const limited=await rateLimit(req,"privacy-request",5,3600000);if(limited)return limited;const p=await readJson(req,10000);if(!p.ok)return p.response;const {kind,details}=p.body;if(!["access","correction","deletion","restriction","objection","portability"].includes(kind)||typeof details!=="string"||details.trim().length>2000)return json({ok:false,message:"Izberi vrsto zahteve in vnesi največ 2000 znakov."},400);const r=await getDatabase().query("insert into privacy_requests(id,member_id,kind,details) values($1,$2,$3,$4) returning id,due_at",[randomUUID(),u.id,kind,details.trim()]);return json({ok:true,message:"Zahteva je shranjena in čaka na obravnavo upravljavca. Potek spremljaj na tej strani.",data:r.rows[0]},201)}catch{return json({ok:false,message:"Zahteve ni bilo mogoče shraniti. Poskusi ponovno ali piši upravljavcu."},503)}}

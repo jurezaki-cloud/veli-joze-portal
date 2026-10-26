@@ -1,0 +1,1 @@
+import {NextResponse} from "next/server";import {getPortalRepository} from "@/lib/repository";export async function GET(){try{return NextResponse.json({ok:true,data:await getPortalRepository().listPublicMembers()},{headers:{"cache-control":"no-store"}})}catch{return NextResponse.json({ok:false,message:"Seznama članov trenutno ni mogoče naložiti."},{status:503})}}
