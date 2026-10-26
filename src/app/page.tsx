@@ -1,4 +1,6 @@
-﻿import Link from "next/link";
+import { pageMetadata } from "../lib/seo";
+export const metadata = pageMetadata("/");
+import Link from "next/link";
 import Icon from "./Icon";
 export default function Home(){
 const nav=[['home','Domov','/'],['bell','Obvestila','/obvestila'],['chat','Klepet pavšalistov','/klepet'],['map','Zemljevid kampa','/zemljevid'],['users','Pavšalisti','/pavsalisti'],['calendar','Dogodki','/dogodki'],['alert','Prijavi težavo','/tezave'],['cloud','Vreme & morje','/vreme'],['market','Mali oglasi','/oglasi'],['pin','Kam danes?','/kam-danes'],['image','Galerija','/galerija'],['info','Vse informacije','/informacije'],['heart','SOS / Kontakti','/sos'],['bot','JOŽE AI','/joze-ai']];
