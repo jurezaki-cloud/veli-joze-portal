@@ -1,0 +1,8 @@
+/* eslint-disable @typescript-eslint/no-require-imports -- Node regression test. */
+const assert=require('node:assert/strict'),fs=require('node:fs'),ts=require('typescript'),path=require('node:path');
+const root=path.resolve(__dirname,'..'),mod={exports:{}};new Function('require','module','exports',ts.transpileModule(fs.readFileSync(root+'/src/lib/seo.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText)(require,mod,mod.exports);const seo=mod.exports;
+const titles=new Set(),descriptions=new Set();for(const p of Object.keys(seo.publicPages)){const m=seo.pageMetadata(p);assert(!titles.has(m.title));assert(!descriptions.has(m.description));titles.add(m.title);descriptions.add(m.description);assert.equal(m.robots.googleBot['max-image-preview'],'large');assert(m.alternates.canonical.startsWith('https://www.veli-joze.eu/'));}
+for(const p of ['profil','sporocila','klepet','admin']){const m=seo.privatePageMetadata(p);assert.equal(m.robots.index,false);assert.equal(m.alternates.canonical,seo.siteUrl+'/'+p);assert(fs.readFileSync(root+'/src/app/'+p+'/layout.tsx','utf8').includes('privatePageMetadata'));}
+assert.equal(seo.organizationSchema()['@type'],'Organization');assert.equal(seo.websiteSchema().publisher['@id'],seo.organizationSchema()['@id']);assert(!seo.jsonLd({text:'</script>'}).includes('<'));
+assert(fs.readFileSync(root+'/src/app/page.tsx','utf8').includes('<picture className="heroBackdrop">'));for(const width of [800,1280,1600])assert(fs.statSync(root+`/public/hero-seo-1.14.0-${width}.webp`).size<fs.statSync(root+'/public/hero-adriatic-v31.webp').size);
+console.log('PASS distinct public metadata, crawler previews, private canonical/noindex, honest schema and reduced hero assets');

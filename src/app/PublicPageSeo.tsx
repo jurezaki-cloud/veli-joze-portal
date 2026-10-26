@@ -1,0 +1,3 @@
+import Link from "next/link";
+import {jsonLd,pageSchema,publicPages,siteUrl} from "@/lib/seo";
+export default function PublicPageSeo({path}:{path:Exclude<keyof typeof publicPages,"/">}){const [title]=publicPages[path];return <><nav className="seoBreadcrumb" aria-label="Pot po strani"><Link href="/">Portal</Link><span aria-hidden="true">›</span><span>{title}</span></nav><script type="application/ld+json" dangerouslySetInnerHTML={{__html:jsonLd([pageSchema(path),{"@context":"https://schema.org","@type":"BreadcrumbList",itemListElement:[{"@type":"ListItem",position:1,name:"Portal",item:siteUrl+"/"},{"@type":"ListItem",position:2,name:title,item:siteUrl+"/"+path}]}])}}/></>}

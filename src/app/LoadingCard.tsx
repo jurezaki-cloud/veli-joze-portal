@@ -1,0 +1,1 @@
+export default function LoadingCard({label="Nalagam vsebino …"}:{label?:string}){return <div className="portalLoading" role="status"><div className="portalLoadingLabel"><span className="portalSpinner" aria-hidden="true"/>{label}</div><div className="portalSkeleton" aria-hidden="true"><span/><span/><span/></div></div>}

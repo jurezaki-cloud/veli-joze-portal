@@ -1,0 +1,6 @@
+"use client";
+import {publishPortalUpdate} from "@/lib/portal-updates";
+import {readApiResponse} from "@/lib/client-api";
+import {useEffect,useState} from "react";
+type Item={id:string;action:string;reason:string;created_at:string};
+export default function ModerationHistory(){const [items,setItems]=useState<Item[]>([]),[error,setError]=useState("");useEffect(()=>{let live=true;void fetch("/api/profile/moderation",{cache:"no-store"}).then(async r=>{if(!r.ok)throw Error();const j=await readApiResponse(r);if(live){setItems(j.data);const keys=j.data.filter((x:Item)=>x.action==="warning").map((x:Item)=>"moderation:"+x.id);if(keys.length)void fetch("/api/notifications",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({keys})}).then(r=>{if(r.ok&&live)publishPortalUpdate()}).catch(()=>{})}}).catch(()=>{if(live)setError("Opominov trenutno ni mogoče naložiti.")});return()=>{live=false}},[]);return <section className="parcelPanel"><h2>Sporočila moderatorjev</h2>{error?<p role="status">{error}</p>:items.length?items.map(x=><article key={x.id}><b>{x.action==="warning"?"Opomin":x.action==="block"?"Blokada":x.action==="unblock"?"Odstranitev blokade":"Članstvo"}</b><p>{x.reason}</p><small>{new Date(x.created_at).toLocaleString("sl-SI")}</small></article>):<p>Ni opominov ali ukrepov.</p>}</section>}

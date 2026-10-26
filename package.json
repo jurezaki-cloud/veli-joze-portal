@@ -1,28 +1,44 @@
 {
   "name": "veli-joze-portal",
-  "version": "0.1.0",
+  "version": "1.14.1",
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
     "db:migrate": "node scripts/migrate-db.mjs",
-    "preflight": "node scripts/preflight.mjs"
+    "preflight": "node scripts/preflight.mjs",
+    "test:gallery": "node tests/gallery.test.cjs",
+    "test:content": "node tests/content.test.cjs",
+    "test:pwa": "node tests/pwa.test.cjs",
+    "test:chat": "node tests/chat.test.cjs",
+    "test:launch": "node tests/launch.test.cjs",
+    "test:profile": "node tests/profile.test.cjs",
+    "test:accounts": "node tests/accounts.test.cjs",
+    "test:messaging": "node tests/messaging.test.cjs",
+    "test:privacy": "node tests/privacy.test.cjs",
+    "test:message-alerts": "node tests/message-alerts.test.cjs",
+    "test": "node scripts/test-all.mjs",
+    "test:client-api": "node --experimental-strip-types tests/client-api.test.cjs"
   },
   "dependencies": {
     "jose": "^6.2.12",
     "next": "16.3.8",
     "pg": "^8.23.1",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "sharp": "^0.35.5",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/web-push": "^3.6.4",
     "eslint": "^9",
     "eslint-config-next": "16.3.8",
     "tailwindcss": "^4",

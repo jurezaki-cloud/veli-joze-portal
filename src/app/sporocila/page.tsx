@@ -1,0 +1,74 @@
+"use client";
+import {getPhotoRequestKey,clearPhotoRequestKey} from "@/lib/photo-request";
+import {mergeMessageHistory} from "@/lib/message-history";
+import {claimMessageDraftOwner,clearLocalMessageData,readMessageDraft,saveMessageDraft,clearSentMessageDraft,getMessageRequestKey,clearMessageRequestKey} from "@/lib/message-drafts";
+import {publishPortalUpdate} from "@/lib/portal-updates";
+import {readApiResponse} from "@/lib/client-api";
+import {FormEvent,Suspense,useCallback,useEffect,useRef,useState} from "react";
+import {useSearchParams} from "next/navigation";
+import Link from "next/link";
+import MessagePhoto from "../MessagePhoto";
+import Section from "../Section";
+import MemberAvatar from "../MemberAvatar";
+type Contact={id:string;nickname?:string;displayName:string;avatarUpdatedAt?:string};
+type Thread={peer_id:string;nickname:string;display_name:string;avatar_updated_at:string;preview:string;unread:number};
+type Message={id:string;sender_id:string;recipient_id:string;body:string;created_at:string;read_at:string|null;hidden_at?:string|null;has_photo?:boolean};
+type Peer={id:string;nickname:string;display_name:string;avatar_updated_at:string};
+function MessagesClient(){const wanted=useSearchParams().get("peer")||"";const [threads,setThreads]=useState<Thread[]>([]),[contacts,setContacts]=useState<Contact[]>([]),[peer,setPeer]=useState(""),[peerInfo,setPeerInfo]=useState<Peer|null>(null),[own,setOwn]=useState(""),[messages,setMessages]=useState<Message[]>([]),[blocked,setBlocked]=useState<{blocked_id:string;nickname:string}[]>([]),[blockedByMe,setBlockedByMe]=useState(false),[cannotSend,setCannotSend]=useState(false),[draft,setDraft]=useState(""),[error,setError]=useState(""),[status,setStatus]=useState(""),[busy,setBusy]=useState(false),[ready,setReady]=useState(false),[reportId,setReportId]=useState(""),[refresh,setRefresh]=useState(0),[olderBusy,setOlderBusy]=useState(false),[cursor,setCursor]=useState<string|null>(null);const current=useRef(peer),epoch=useRef(0),mutation=useRef(false),active=useRef(true),ownRef=useRef(""),listController=useRef<AbortController|null>(null),listVersion=useRef(0),olderController=useRef<AbortController|null>(null),historyLoaded=useRef(false),context=useRef({peer:"",own:""});
+ useEffect(()=>{const timer=setTimeout(()=>setPeer(wanted),0);return()=>clearTimeout(timer)},[wanted]);
+ const loadList=useCallback(async()=>{
+  listController.current?.abort();const c=new AbortController(),version=++listVersion.current;listController.current=c;
+  try{const r=await fetch("/api/messages",{cache:"no-store",signal:c.signal});if(!active.current||version!==listVersion.current)return;
+   if(r.status===401||r.status===403){clearLocalMessageData();ownRef.current="";epoch.current++;setOwn("");setThreads([]);setContacts([]);setMessages([]);setPeerInfo(null);setBlocked([]);setDraft("");setReady(false);setCannotSend(true);setCursor(null);}
+   const j=await readApiResponse(r);if(!active.current||version!==listVersion.current)return;
+   if(ownRef.current&&ownRef.current!==j.ownId){clearLocalMessageData();epoch.current++;setMessages([]);setPeerInfo(null);setDraft("");setReady(false);setCursor(null);historyLoaded.current=false;olderController.current?.abort();}
+   claimMessageDraftOwner(j.ownId);ownRef.current=j.ownId;setThreads(j.data);setBlocked(j.blocked);setOwn(j.ownId);
+  }catch(e){if(c.signal.aborted||!active.current||version!==listVersion.current)return;throw e;}
+ },[]);
+ useEffect(()=>{
+  active.current=true;const c=new AbortController();
+  void Promise.all([loadList(),fetch("/api/members",{cache:"no-store",signal:c.signal}).then(async r=>{const j=await readApiResponse(r);if(active.current&&!c.signal.aborted)setContacts(j.data)})]).catch(e=>{if(active.current&&!c.signal.aborted)setError(e instanceof Error?e.message:"Seznama ni mogoče naložiti.")});
+  const interval=setInterval(()=>{if(!document.hidden)void loadList().catch(e=>{if(active.current)setError(e instanceof Error?e.message:"Seznama ni mogoče osvežiti.")})},10000);
+  return()=>{active.current=false;c.abort();listController.current?.abort();olderController.current?.abort();clearInterval(interval)}
+ },[loadList]);
+ useEffect(()=>{const clear=()=>setDraft("");window.addEventListener("veli-joze-drafts-cleared",clear);return()=>window.removeEventListener("veli-joze-drafts-cleared",clear)},[]);
+ useEffect(()=>{
+  current.current=peer;if(!peer||!own)return;
+  const abort=new AbortController();let working=false;
+  const changed=context.current.peer!==peer||context.current.own!==own;
+  context.current={peer,own};
+  const load=async()=>{
+   if(working||document.hidden)return;working=true;const version=epoch.current;
+   try{const r=await fetch(`/api/messages?peer=${encodeURIComponent(peer)}`,{cache:"no-store",signal:abort.signal});
+    if(abort.signal.aborted||current.current!==peer||version!==epoch.current)return;
+    if(r.status===401||r.status===403){clearLocalMessageData();setMessages([]);setPeerInfo(null);setReady(false);setCannotSend(true);setCursor(null);}
+    const j=await readApiResponse(r);if(abort.signal.aborted||current.current!==peer||version!==epoch.current||j.ownId!==ownRef.current)return;
+    setMessages(previous=>mergeMessageHistory(previous,j.data,true));if(!historyLoaded.current)setCursor(j.nextCursor||null);setPeerInfo(j.peer);setBlockedByMe(j.blockedByMe);setCannotSend(j.cannotSend);setReady(true);setError("");
+    const ids=j.data.filter((m:Message)=>m.recipient_id===j.ownId&&!m.read_at&&!m.hidden_at).map((m:Message)=>m.id);
+    if(ids.length&&!document.hidden){const read=await fetch("/api/messages",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({action:"read",peer,ids}),signal:abort.signal});if(read.ok&&!abort.signal.aborted){publishPortalUpdate();void loadList().catch(()=>{})}}
+   }catch(e){if(!abort.signal.aborted&&current.current===peer&&version===epoch.current)setError(e instanceof Error?e.message:"Pogovora ni mogoče naložiti.")}finally{working=false}
+  };
+  const t=setTimeout(()=>{if(changed){historyLoaded.current=false;setOlderBusy(false);setCursor(null);setReady(false);setMessages([]);setPeerInfo(null);setReportId("");setDraft(readMessageDraft(own,"dm:"+peer,2000));setStatus("")}void load()},0),interval=setInterval(()=>void load(),7000);
+  const visible=()=>void load();document.addEventListener("visibilitychange",visible);
+  return()=>{abort.abort();olderController.current?.abort();clearTimeout(t);clearInterval(interval);document.removeEventListener("visibilitychange",visible)}
+ },[peer,refresh,loadList,own]);
+ async function loadOlder(){
+  if(!cursor||olderController.current||mutation.current||!ready)return;
+  const target=peer,sender=own,c=new AbortController(),version=epoch.current;olderController.current=c;setOlderBusy(true);setStatus("");
+  try{const r=await fetch(`/api/messages?peer=${encodeURIComponent(target)}&before=${encodeURIComponent(cursor)}`,{cache:"no-store",signal:c.signal}),j=await readApiResponse(r);if(!active.current||c.signal.aborted||current.current!==target||ownRef.current!==sender||j.ownId!==sender||version!==epoch.current)return;historyLoaded.current=true;setMessages(previous=>mergeMessageHistory(previous,j.data));setCursor(j.nextCursor||null);
+   const ids=j.data.filter((m:Message)=>m.recipient_id===sender&&!m.read_at&&!m.hidden_at).map((m:Message)=>m.id);if(ids.length){const read=await fetch("/api/messages",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({action:"read",peer:target,ids}),signal:c.signal});if(read.ok&&!c.signal.aborted){publishPortalUpdate();void loadList().catch(()=>{})}}
+  }catch(e){if(active.current&&!c.signal.aborted&&current.current===target)setStatus(e instanceof Error?e.message:"Starejših sporočil ni mogoče naložiti.")}finally{if(olderController.current===c)olderController.current=null;if(active.current&&current.current===target)setOlderBusy(false)}
+ }
+ async function photo(e:FormEvent<HTMLFormElement>){
+  e.preventDefault();if(mutation.current||cannotSend||!ready||!own)return;
+  const form=e.currentTarget,target=peer,sender=own,f=new FormData(form),file=f.get("photo");if(!(file instanceof File)||!file.size)return;
+  mutation.current=true;setBusy(true);setStatus("");f.set("peer",target);
+  try{const key=await getPhotoRequestKey(sender,"dm:"+target,file);if(!active.current||ownRef.current!==sender||current.current!==target)return;f.set("clientRequestId",key);const r=await fetch("/api/messages/photo",{method:"POST",body:f}),j=await readApiResponse(r);clearPhotoRequestKey(sender,"dm:"+target,key);if(active.current&&current.current===target&&ownRef.current===sender){setStatus(j.message||"Fotografija je poslana.");form.reset();epoch.current++;setRefresh(x=>x+1)}await loadList()}catch(e){if(active.current)setStatus(e instanceof Error?e.message:"Fotografija ni bila potrjena. Izbira ostane; poskusi ponovno.")}finally{mutation.current=false;if(active.current)setBusy(false)}
+ }
+ async function action(action:string,values:Record<string,unknown>={}){if(mutation.current)return;mutation.current=true;setBusy(true);try{const r=await fetch("/api/messages",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({action,peer,...values})}),j=await readApiResponse(r);if(!r.ok)throw Error(j.message);setStatus(j.message);setReportId("");await loadList();if(action==="block"){setBlockedByMe(true);setCannotSend(true)}if(action==="unblock"&&(!values.peer||values.peer===peer)){epoch.current++;setRefresh(x=>x+1)}}catch(e){setStatus(e instanceof Error?e.message:"Ukrep ni uspel.")}finally{mutation.current=false;if(active.current)setBusy(false)}}
+ async function send(e:FormEvent<HTMLFormElement>){e.preventDefault();if(mutation.current||!draft.trim()||cannotSend||!ready||!own)return;const target=peer,sentDraft=draft,sender=own;mutation.current=true;setBusy(true);setStatus("");try{const clientRequestId=getMessageRequestKey(sender,"dm:"+target,sentDraft.trim());const r=await fetch("/api/messages",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({peer:target,body:sentDraft,clientRequestId})}),j=await readApiResponse(r);if(!r.ok)throw Error(j.message);clearMessageRequestKey(sender,"dm:"+target,clientRequestId);clearSentMessageDraft(sender,"dm:"+target,sentDraft,2000);if(active.current&&current.current===target&&ownRef.current===sender){epoch.current++;setMessages(x=>mergeMessageHistory(x,[j.data]));setDraft("");setStatus("Sporočilo je poslano.")}await loadList()}catch(e){if(active.current)setStatus(e instanceof TypeError?"Povezava je prekinjena. Osnutek je ohranjen. Ponovi pošiljanje istega besedila; prejšnji poskus bo varno preverjen.":e instanceof Error?e.message:"Pošiljanja ni mogoče potrditi. Osnutek je ohranjen; preveri pogovor.")}finally{mutation.current=false;if(active.current)setBusy(false)}}
+ function choose(id:string){if(mutation.current)return;epoch.current++;current.current=id;setPeer(id);setDraft(readMessageDraft(own,"dm:"+id,2000));if(id)history.replaceState(null,"",`/sporocila?peer=${encodeURIComponent(id)}`)}
+ return <Section title="Zasebna sporočila"><p>Pogovor vidita udeleženca. Ob prijavi lahko moderator pregleda samo prijavljeno sporočilo.</p>{error&&<p role="alert">{error} <button onClick={()=>{void loadList().then(()=>setError("")).catch(e=>setError(e instanceof Error?e.message:"Povezava ni dosegljiva."));setRefresh(x=>x+1)}}>Poskusi znova</button> <Link href="/prijava">Prijava</Link></p>}<div className="dmLayout"><aside><label>Nov pogovor<select aria-label="Izberi člana" value={peer} disabled={busy} onChange={e=>choose(e.target.value)}><option value="">Izberi člana</option>{contacts.filter(c=>c.id!==own).map(c=><option key={c.id} value={c.id}>{c.nickname||c.displayName}</option>)}</select></label><h2>Pogovori</h2>{threads.map(t=><button className={peer===t.peer_id?"dmThread active":"dmThread"} key={t.peer_id} disabled={busy} onClick={()=>choose(t.peer_id)}><b>{t.nickname||t.display_name}</b><span>{t.preview}</span>{t.unread>0&&<strong>{t.unread} novo</strong>}</button>)}{!threads.length&&<p>Še nimaš pogovorov.</p>}{blocked.length>0&&<><h3>Blokirani pošiljatelji</h3>{blocked.map(b=><p key={b.blocked_id}>{b.nickname} <button disabled={busy} onClick={()=>void action("unblock",{peer:b.blocked_id})}>Odblokiraj</button></p>)}</>}</aside><section className="dmConversation">{peer?<>{peerInfo&&<header className="dmHead"><MemberAvatar id={peerInfo.id} name={peerInfo.nickname||peerInfo.display_name} updated={peerInfo.avatar_updated_at}/><h2>{peerInfo.nickname||peerInfo.display_name}</h2><button disabled={busy} onClick={()=>void action(blockedByMe?"unblock":"block")}>{blockedByMe?"Odblokiraj":"Blokiraj pošiljatelja"}</button></header>}{!ready?<p>Nalagam pogovor …</p>:<><div className="dmMessages" aria-live="polite">{messages.map(m=><article key={m.id} className={m.sender_id===own?"dmBubble mine":"dmBubble"}><p>{m.body}</p>{m.has_photo&&!m.hidden_at&&<MessagePhoto src={`/api/messages/photo?id=${m.id}`} alt="Fotografija v zasebnem sporočilu"/>}<small>{new Date(m.created_at).toLocaleString("sl-SI")}{m.sender_id===own?m.read_at?" · Prebrano":" · Poslano":""}</small>{m.sender_id!==own&&!m.hidden_at&&<button disabled={busy} onClick={()=>setReportId(m.id)}>Prijavi</button>}</article>)}{!messages.length&&<p>Začni pogovor s prvim sporočilom.</p>}</div>{cursor&&<button type="button" disabled={olderBusy||busy} onClick={()=>void loadOlder()}>{olderBusy?"Nalagam starejša sporočila …":"Naloži starejša sporočila"}</button>}{reportId&&<form className="functionalForm" onSubmit={e=>{e.preventDefault();void action("report",{messageId:reportId,reason:new FormData(e.currentTarget).get("reason")})}}><label>Razlog prijave<textarea name="reason" maxLength={500} required/></label><button disabled={busy}>Pošlji prijavo</button><button type="button" onClick={()=>setReportId("")}>Prekliči</button></form>}{cannotSend?<p>Pošiljanje v tem pogovoru je blokirano.</p>:<><form className="functionalForm" onSubmit={photo}><label>Fotografija<input name="photo" type="file" accept="image/jpeg,image/png,image/webp" required disabled={busy}/></label><button disabled={busy}>{busy?"Pošiljam …":"Pošlji fotografijo"}</button><small>JPG, PNG ali WebP · do 5 MB</small></form><form className="functionalForm" onSubmit={send}><label>Sporočilo <small>Osnutek se shrani v tem zavihku za tvoj račun.</small><textarea value={draft} onChange={e=>{setDraft(e.target.value);saveMessageDraft(own,"dm:"+peer,e.target.value,2000)}} maxLength={2000} required disabled={busy}/></label><button disabled={busy||!draft.trim()}>{busy?"Pošiljam …":"Pošlji"}</button></form></>}</>}{status&&<p role="status">{status}</p>}</>:<p>Izberi sogovornika ali odpri obstoječ pogovor.</p>}</section></div></Section>;
+}
+
+export default function Page(){return <Suspense fallback={<Section title="Zasebna sporočila"><p>Nalagam pogovore …</p></Section>}><MessagesClient/></Suspense>}
