@@ -72,15 +72,37 @@ for (const source of [
   "http://veli-joze.eu/",
   "https://veli-joze.eu/",
 ]) {
-  const response = await checked(source, "Redirect reachable: " + source);
-  if (!response) continue;
-  const target = response.headers.get("location") || "";
+  // cPanel can first upgrade the apex domain to HTTPS; Next.js then adds www.
+  // Every hop must be permanent, upgrade to HTTPS, and preserve path and query.
+  let current = source;
+  let hops = 0;
+  let reachedPage = false;
+  const visited = new Set();
+  const pathAndQuery = new URL(source).pathname + new URL(source).search;
+  const expected = new URL(pathAndQuery, ORIGIN).href;
+  const chain = [];
+  while (hops < 4 && !visited.has(current)) {
+    visited.add(current);
+    const response = await checked(current, "Redirect reachable: " + current);
+    if (!response) break;
+    if (response.status === 200) {
+      reachedPage = true;
+      break;
+    }
+    const location = response.headers.get("location");
+    if (![301, 308].includes(response.status) || !location) break;
+    const next = new URL(location, current);
+    chain.push(String(response.status) + " to " + next.href);
+    if (next.protocol !== "https:" ||
+        !["veli-joze.eu", "www.veli-joze.eu"].includes(next.hostname) ||
+        next.pathname + next.search !== pathAndQuery) break;
+    current = next.href;
+    hops++;
+  }
   test(
-    [301, 308].includes(response.status) &&
-    target.startsWith(ORIGIN) &&
-    sameUrl(new URL(target).pathname, new URL(source).pathname),
+    reachedPage && hops > 0 && hops < 4 && sameUrl(current, expected),
     "Permanent canonical HTTPS redirect: " + source,
-    "HTTP " + response.status + (target ? " to " + target : " WITHOUT LOCATION")
+    chain.join(" | ") || "missing redirect"
   );
 }
 const robots = await checked(ORIGIN + "/robots.txt", "robots.txt reachable", true);
