@@ -1,0 +1,28 @@
+name: Veli Jože security upgrade
+
+on:
+  pull_request:
+    branches:
+      - feature/veli-joze-reconcile-1.14.1
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Audit + 45 test suites + build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --no-audit
+      - run: npm audit --audit-level=high
+      - run: npm test
+      - run: npm run lint
+      - run: npm run build
