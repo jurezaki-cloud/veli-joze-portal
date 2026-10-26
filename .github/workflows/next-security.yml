@@ -22,6 +22,7 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci --no-audit
+      - run: node --check scripts/qa-production-readonly.mjs
       - run: npm audit --audit-level=high
       - run: npm test
       - run: npm run lint
